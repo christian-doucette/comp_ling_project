@@ -1,7 +1,7 @@
 import csv
 import numpy 
 import math
-
+import json
 
 
 class NB:
@@ -87,6 +87,22 @@ class NB:
 				#	break
 		return num_correct / num_total
 
+	def save_trained_weights(self,file_name):
+		'''
+		JSON Structure: dictionary keyed by class_id. Values are dictionaries with 'log_prior'
+						and 'log_likelihoods' keys. 
+						Log_prior is float.
+						log_likelihoods is a dictionary keyed by words, with float values.
+		'''
+		json_obj = {}
+		for class_id, c in self.class_data.items():
+			json_obj[class_id] = {}
+			json_obj[class_id]['log_prior'] = c.log_prior
+			json_obj[class_id]['log_likelihoods'] = c.log_likelihoods
+
+		with open(file_name, 'w') as output_file:
+			json.dump(json_obj, output_file)
+
 
 
 class ClassData:
@@ -111,3 +127,4 @@ model = NB(training_file='train_sanitized.csv',test_file='test_sanitized.csv')
 model.train()
 accuracy = model.test()
 print('model accuracy:', accuracy)
+model.save_trained_weights('NB_weights.json')
