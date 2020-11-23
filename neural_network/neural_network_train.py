@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from collections import Counter
 import get_vocab
 
-
+whitelist_characters = set('abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890')
 word_to_id, id_to_word = get_vocab.vocab_indices('../practice.csv')
 
 
@@ -46,7 +46,7 @@ class CSV_Dataset(Dataset):
         labels = []
         for feature,label in parsed_csv:
             embedded_feature = []
-            for word in feature:
+            for word in preprocess_feature(feature):
                 if word in word_to_id:
                     embedded_feature.append(word_to_id[word])
                 else:
@@ -70,14 +70,3 @@ class CSV_Dataset(Dataset):
 
 
 training_data = CSV_Dataset('../practice.csv')
-print(training_data.X)
-
-
-"""
-with open('../practice.csv', newline='') as f:
-    reader = csv.reader(f)
-    reader_list = list(reader)[1:2501]
-
-for review,label in reader_list:
-    print(label)
-"""
