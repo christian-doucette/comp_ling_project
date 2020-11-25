@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset, Dataset
 import get_vocab
 
 k = 400
+batch_size = 5
 word_to_id, id_to_word = get_vocab.vocab_indices('../practice_nn.csv')
 
 def one_hot(index):
@@ -65,125 +66,211 @@ class CSV_Dataset(Dataset):
 
 csv_dataset_train = CSV_Dataset('../practice_nn.csv')
 train_data = TensorDataset(csv_dataset_train.X, csv_dataset_train.y)
-train_loader = DataLoader(train_data, batch_size=50, shuffle=True)
+train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 train_iterator = iter(train_loader)
 
-csv_dataset_test = CSV_Dataset('../practice_nn.csv')
+csv_dataset_test = CSV_Dataset('../practice_test_nn.csv')
 test_data = TensorDataset(csv_dataset_test.X, csv_dataset_test.y)
-test_loader = DataLoader(test_data, batch_size=50, shuffle=True)
+test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 test_iterator = iter(test_loader)
 
 #train_iterator, test_iterator = data.BucketIterator.splits((train_data, test_data), batch_size = 50)
+print(f'X size: {csv_dataset_train.X.shape}, {csv_dataset_train.y.shape}')
 
 
-class RNN(nn.Module):
-    def __init__(self, input_dim, embedding_dim, hidden_dim, output_dim):
-
-        super().__init__()
-        self.embedding = nn.Embedding(input_dim, embedding_dim)
-        self.rnn = nn.RNN(embedding_dim, hidden_dim)
-        self.fc = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, text):
-
-        #text = [sent len, batch size]
-
-        embedded = self.embedding(text)
-
-        #embedded = [sent len, batch size, emb dim]
-
-        output, hidden = self.rnn(embedded)
-
-        #output = [sent len, batch size, hid dim]
-        #hidden = [1, batch size, hid dim]
-
-        assert torch.equal(output[-1,:,:], hidden.squeeze(0))
-
-        return self.fc(hidden.squeeze(0))
-
-
-
-
-INPUT_DIM = len(id_to_word)
-EMBEDDING_DIM = 100
-HIDDEN_DIM = 256
-OUTPUT_DIM = 1
-
-model = RNN(INPUT_DIM, EMBEDDING_DIM, HIDDEN_DIM, OUTPUT_DIM)
-optimizer = optim.SGD(model.parameters(), lr=1e-3)
-criterion = nn.BCEWithLogitsLoss()
-
-def binary_accuracy(preds, y):
+class SentimentRNN(nn.Module):
     """
-    Returns accuracy per batch, i.e. if you get 8/10 right, this returns 0.8, NOT 8
+    The RNN model that will be used to perform Sentiment analysis.
     """
 
-    #round predictions to the closest integer
-    rounded_preds = torch.round(torch.sigmoid(preds))
-    correct = (rounded_preds == y).float() #convert into float for division
-    acc = correct.sum() / len(correct)
-    return acc
+    def __init__(self, vocab_size, output_size, embedding_dim, hidden_dim, n_layers, drop_prob=0.5):
+        """
+        Initialize the model by setting up the layers.
+        """
+        super(SentimentRNN, self).__init__()
+
+        self.output_size = output_size
+        self.n_layers = n_layers
+        self.hidden_dim = hidden_dim
+
+        # embedding and LSTM layers
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers,
+                            dropout=drop_prob, batch_first=True)
+
+        # dropout layer
+        self.dropout = nn.Dropout(0.3)
+
+        # linear and sigmoid layer
+        self.fc = nn.Linear(hidden_dim, output_size)
+        self.sig = nn.Sigmoid()
+
+    def forward(self, x, hidden):
+        """
+        Perform a forward pass of our model on some input and hidden state.
+        """
+        batch_size = x.size(0)
+
+        # embeddings and lstm_out
+        embeds = self.embedding(x)
+        lstm_out, hidden = self.lstm(embeds, hidden)
+
+        # stack up lstm outputs
+        lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
+
+        # dropout and fully connected layer
+        out = self.dropout(lstm_out)
+        out = self.fc(out)
+
+        # sigmoid function
+        sig_out = self.sig(out)
+
+        # reshape to be batch_size first
+        sig_out = sig_out.view(batch_size, -1)
+        sig_out = sig_out[:, -1] # get last batch of labels
+
+        # return last sigmoid output and hidden state
+        return sig_out, hidden
 
 
-def train(model, iterator, optimizer, criterion):
+    def init_hidden(self, batch_size):
+        ''' Initializes hidden state '''
+        # Create two new tensors with sizes n_layers x batch_size x hidden_dim,
+        # initialized to zero, for hidden state and cell state of LSTM
+        weight = next(self.parameters()).data
+        hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_(), weight.new(self.n_layers, batch_size, self.hidden_dim).zero_())
 
-    epoch_loss = 0
-    epoch_acc = 0
+        return hidden
 
-    model.train()
 
-    for batch in iterator:
 
-        optimizer.zero_grad()
 
-        predictions = model(batch.text).squeeze(1)
 
-        loss = criterion(predictions, batch.label)
 
-        acc = binary_accuracy(predictions, batch.label)
+vocab_size = len(id_to_word) + 1
+output_size = 1
+embedding_dim = 400
+hidden_dim = 256
+n_layers = 2
 
+net = SentimentRNN(vocab_size, output_size, embedding_dim, hidden_dim, n_layers)
+
+print(net)
+
+
+# loss and optimization functions
+lr=0.001
+criterion = nn.BCELoss()
+optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+
+
+
+
+
+# training params
+
+epochs = 4 # 3-4 is approx where I noticed the validation loss stop decreasing
+counter = 0
+print_every = 100
+clip=5 # gradient clipping
+
+# move model to GPU, if available
+
+
+net.train()
+# train for some number of epochs
+for e in range(epochs):
+    # initialize hidden state
+    h = net.init_hidden(batch_size)
+
+    # batch loop
+    for inputs, labels in train_loader:
+        inputs = torch.add(inputs, 1)
+        counter += 1
+
+
+        # Creating new variables for the hidden state, otherwise
+        # we'd backprop through the entire training history
+        h = tuple([each.data for each in h])
+
+        # zero accumulated gradients
+        net.zero_grad()
+
+        # get the output from the model
+        output, h = net(inputs, h)
+
+        # calculate the loss and perform backprop
+        loss = criterion(output.squeeze(), labels.float())
         loss.backward()
-
+        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+        nn.utils.clip_grad_norm_(net.parameters(), clip)
         optimizer.step()
 
-        epoch_loss += loss.item()
-        epoch_acc += acc.item()
+        # loss stats
+        if counter % print_every == 0:
+            # Get validation loss
+            val_h = net.init_hidden(batch_size)
+            val_losses = []
+            net.eval()
+            for inputs, labels in valid_loader:
 
-    return epoch_loss / len(iterator), epoch_acc / len(iterator)
+                # Creating new variables for the hidden state, otherwise
+                # we'd backprop through the entire training history
+                val_h = tuple([each.data for each in val_h])
 
 
+                output, val_h = net(inputs, val_h)
+                val_loss = criterion(output.squeeze(), labels.float())
 
+                val_losses.append(val_loss.item())
 
-def evaluate(model, iterator, criterion):
-
-    epoch_loss = 0
-    epoch_acc = 0
-
-    model.eval()
-
-    with torch.no_grad():
-
-        for batch in iterator:
-
-            predictions = model(batch.text).squeeze(1)
-
-            loss = criterion(predictions, batch.label)
-
-            acc = binary_accuracy(predictions, batch.label)
-
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
-
-    return epoch_loss / len(iterator), epoch_acc / len(iterator)
+            net.train()
+            print("Epoch: {}/{}...".format(e+1, epochs),
+                  "Step: {}...".format(counter),
+                  "Loss: {:.6f}...".format(loss.item()),
+                  "Val Loss: {:.6f}".format(np.mean(val_losses)))
 
 
 
 
-N_EPOCHS = 5
 
-best_valid_loss = float('inf')
+# Get test data loss and accuracy
+test_losses = [] # track loss
+num_correct = 0
 
-for epoch in range(N_EPOCHS):
-    train_loss, train_acc = train(model, train_iterator, optimizer, criterion)
-    print(f'Epoch: {epoch}')
-    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}%')
+# init hidden state
+h = net.init_hidden(batch_size)
+
+net.eval()
+# iterate over test data
+for inputs, labels in test_loader:
+    inputs = torch.add(inputs, 1)
+
+    # Creating new variables for the hidden state, otherwise
+    # we'd backprop through the entire training history
+    h = tuple([each.data for each in h])
+
+
+    # get predicted outputs
+    output, h = net(inputs, h)
+
+    # calculate loss
+    test_loss = criterion(output.squeeze(), labels.float())
+    test_losses.append(test_loss.item())
+
+    # convert output probabilities to predicted class (0 or 1)
+    pred = torch.round(output.squeeze())  # rounds to the nearest integer
+
+    # compare predictions to true label
+    correct_tensor = pred.eq(labels.float().view_as(pred))
+    correct = np.squeeze(correct_tensor.numpy())
+    num_correct += np.sum(correct)
+
+
+# -- stats! -- ##
+# avg test loss
+print("Test loss: {:.3f}".format(np.mean(test_losses)))
+
+# accuracy over all test data
+test_acc = num_correct/len(test_loader.dataset)
+print("Test accuracy: {:.3f}".format(test_acc))
