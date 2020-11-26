@@ -15,8 +15,8 @@ import preprocess
 #=======================================#
 
 reviews_len = 400
-batch_size = 5
-min_occurences = 2
+batch_size = 50
+min_occurences = 20
 
 
 
@@ -24,12 +24,12 @@ min_occurences = 2
 #   Loading Vocab and Test/Train Data   #
 #=======================================#
 
-word_to_id = get_vocab.vocab_indices('../practice_nn.csv', min_occurences)
+word_to_id = get_vocab.vocab_indices('../train_sanitized_nn_full.csv', min_occurences)
 
-train_dataset = preprocess.preprocess_csv('../practice_nn.csv', reviews_len, word_to_id)
+train_dataset = preprocess.preprocess_csv('../train_sanitized_nn_full.csv', reviews_len, word_to_id)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-test_dataset = preprocess.preprocess_csv('../practice_test_nn.csv', reviews_len, word_to_id)
+test_dataset = preprocess.preprocess_csv('../test_sanitized_nn_full.csv', reviews_len, word_to_id)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 
@@ -63,9 +63,9 @@ optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
 #=======================================#
 #          Training Parameters          #
 #=======================================#
-epochs = 4 # 3-4 isn normal
+epochs = 4 # 3-4 is normal
 counter = 0
-print_every = 1
+print_every = 100
 clip = 5 # gradient clipping
 
 
@@ -76,8 +76,8 @@ clip = 5 # gradient clipping
 #=======================================#
 
 net.train()
-# train for some number of epochs
 for e in range(epochs):
+    print(f'Epoch {e+1}')
     # initialize hidden state
     h = net.init_hidden(batch_size)
 
@@ -163,8 +163,11 @@ for inputs, labels in test_loader:
 
     # compare predictions to true label
     correct_tensor = pred.eq(labels.float().view_as(pred))
+
     correct = np.squeeze(correct_tensor.numpy())
     num_correct += np.sum(correct)
+
+
 
 
 
