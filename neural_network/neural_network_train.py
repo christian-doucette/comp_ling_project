@@ -15,8 +15,8 @@ import preprocess
 #=======================================#
 
 reviews_len = 400
-batch_size = 5
-min_occurences = 2
+batch_size = 50
+min_occurences = 20
 
 
 
