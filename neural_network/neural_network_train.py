@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
+import torch.optim
 from torch.utils.data import DataLoader
 
 #My code files
@@ -14,9 +14,9 @@ import preprocess
 #       Preprocessing Parameters        #
 #=======================================#
 
-reviews_len = 400
-batch_size = 50
-min_occurences = 20
+reviews_len = 400       # length of each review
+batch_size = 50         # size of batches used in train_loader and test_loader
+min_occurences = 20     # min number of occurences a word needs to occur in the vocabulary
 
 
 
@@ -41,9 +41,9 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 vocab_size = len(word_to_id) + 1
 output_size = 1
 
-embedding_dim = 512
-hidden_dim = 256
-n_layers = 3
+embedding_dim = 512     # size of the word embeddings
+hidden_dim = 256        # size of the hidden state
+n_layers = 3            # number of LSTM layers
 
 
 
@@ -93,7 +93,7 @@ for e in range(epochs):
         loss = loss_func(output.squeeze(), labels.float())
         loss.backward()
 
-        # the guide I used said to include this to avoid the exploding gradient problem
+        # the guide I used said to include this to avoid the "exploding gradient problem"
         nn.utils.clip_grad_norm_(net.parameters(), clip)
         optimizer.step()
 

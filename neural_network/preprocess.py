@@ -1,7 +1,12 @@
 import csv
 import torch
-from torch.utils.data import DataLoader, TensorDataset, Dataset
+from torch.utils.data import TensorDataset
 
+
+# takes in a sentence and converts ot to a list of ids, where each id corresponds to a word
+# also sets all to length review_lens:
+#       if it is shorter, front-pads with 0
+#       if it is longer, truncates
 
 def embed_feature(sentence_string, review_lens, vocab):
     embedded_review = []
@@ -11,16 +16,14 @@ def embed_feature(sentence_string, review_lens, vocab):
         else:
             embedded_review.append(0)
 
-
-
-        #review_lens is number of words in each review input
-        #reviews with less words are front-padded with 0
-        #reviews iwth more words are truncated
         padding = [0] * (review_lens - len(embedded_review))
 
     return padding + embedded_review[0:review_lens]
 
 
+
+
+# takes in a csv filepath and returns a TensorDataset corresponding to that data
 
 def preprocess_csv(file_path, review_lens, vocab):
     with open(file_path, newline='') as f:
@@ -30,8 +33,6 @@ def preprocess_csv(file_path, review_lens, vocab):
     features = []
     labels = []
     for feature,label in parsed_csv:
-        ids_feature = []
-
         features.append(embed_feature(feature, review_lens, vocab))
         labels.append(int(label=="1"))
 
