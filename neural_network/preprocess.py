@@ -35,4 +35,4 @@ def preprocess_csv(file_path, review_lens, vocab):
         features.append(embed_feature(feature, review_lens, vocab))
         labels.append(int(label=="1"))
 
-    return TensorDataset(torch.tensor(features), torch.tensor(labels))
+    return TensorDataset(torch.tensor(features), torch.tensor(labels), torch.tensor(range(len(parsed_csv))))

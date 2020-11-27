@@ -15,8 +15,8 @@ import preprocess
 #=======================================#
 
 reviews_len = 400
-batch_size = 50
-min_occurences = 20
+batch_size = 5
+min_occurences = 2
 
 
 
@@ -40,10 +40,10 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 vocab_size = len(word_to_id) + 1
 output_size = 1
-embedding_dim = 400
-hidden_dim = 256
-n_layers = 2
 
+embedding_dim = 512
+hidden_dim = 256
+n_layers = 3
 
 
 
@@ -52,11 +52,10 @@ n_layers = 2
 #=======================================#
 
 net = rnn_class.SA_RNN(vocab_size, output_size, embedding_dim, hidden_dim, n_layers)
-learning_rate = 0.001 #0.001
+
+learning_rate = 0.001
 loss_func = nn.BCELoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
-
-
 
 
 
@@ -64,10 +63,7 @@ optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
 #          Training Parameters          #
 #=======================================#
 epochs = 4 # 3-4 is normal
-counter = 0
-print_every = 100
 clip = 5 # gradient clipping
-
 
 
 
@@ -81,53 +77,25 @@ for e in range(epochs):
     # initialize hidden state
     h = net.init_hidden(batch_size)
 
-    # batch loop
-    for inputs, labels in train_loader:
-        counter += 1
+    # loop through each batch using loader
+    for inputs, labels, _ in train_loader:
 
-
-        # Creating new variables for the hidden state, otherwise
-        # we'd backprop through the entire training history
+        # create new variable for hidden state, to reset training history
         h = tuple([each.data for each in h])
 
-        # zero accumulated gradients
+        # sets gradient to zero
         net.zero_grad()
 
-        # get the output from the model
-        output, h = net(inputs, h)
+        # get the netowrk output for this batch
+        output, h = net.forward(inputs, h)
 
-        # calculate the loss and perform backprop
+        # calculate loss gradient with backpropogation
         loss = loss_func(output.squeeze(), labels.float())
         loss.backward()
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+
+        # the guide I used said to include this to avoid the exploding gradient problem
         nn.utils.clip_grad_norm_(net.parameters(), clip)
         optimizer.step()
-
-        # loss stats
-        if counter % print_every == 0:
-            # Get validation loss
-            val_h = net.init_hidden(batch_size)
-            val_losses = []
-            net.eval()
-            for inputs, labels in test_loader:
-
-                # Creating new variables for the hidden state, otherwise
-                # we'd backprop through the entire training history
-                val_h = tuple([each.data for each in val_h])
-
-
-                output, val_h = net(inputs, val_h)
-                val_loss = loss_func(output.squeeze(), labels.float())
-
-                val_losses.append(val_loss.item())
-
-            net.train()
-            print("Epoch: {}/{}...".format(e+1, epochs),
-                  "Step: {}...".format(counter),
-                  "Loss: {:.6f}...".format(loss.item()),
-                  "Val Loss: {:.6f}".format(np.mean(val_losses)))
-
-
 
 
 
@@ -136,6 +104,7 @@ for e in range(epochs):
 #             RNN Testing               #
 #=======================================#
 
+misclassifications = [] #examples of reviews that the model misclassifies
 test_losses = [] # track loss
 num_correct = 0
 
@@ -144,15 +113,14 @@ h = net.init_hidden(batch_size)
 
 net.eval()
 
-for inputs, labels in test_loader:
+# loops through each batch once, so will count each test review once
+for inputs, labels, indices in test_loader:
 
-    # Creating new variables for the hidden state, otherwise
-    # we'd backprop through the entire training history
+    # create new variable for hidden state, to reset training history
     h = tuple([each.data for each in h])
 
-
-    # get predicted outputs
-    output, h = net(inputs, h)
+    # get the netowrk output for this batch
+    output, h = net.forward(inputs, h)
 
     # calculate loss
     test_loss = loss_func(output.squeeze(), labels.float())
@@ -164,12 +132,19 @@ for inputs, labels in test_loader:
     # compare predictions to true label
     correct_tensor = pred.eq(labels.float().view_as(pred))
 
+    # collect misclassifications
+    incorrect_tensor = torch.logical_not(correct_tensor)
+    misclassifications_this_batch = torch.masked_select(indices, incorrect_tensor)
+    misclassifications = misclassifications + misclassifications_this_batch.tolist()
+
+
+    # count number of correct classifications
     correct = np.squeeze(correct_tensor.numpy())
     num_correct += np.sum(correct)
 
 
-
-
+misclassifications.sort()
+print(misclassifications)
 
 print("Test loss: {:.3f}".format(np.mean(test_losses)))
 
