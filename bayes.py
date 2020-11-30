@@ -79,9 +79,11 @@ class NB:
 							s[class_id] += c.log_likelihoods[word]
 
 				candidate_answer = max(s.items(), key=(lambda x: x[1]))[0]
-				print(correct_answer, candidate_answer)
+				#print(correct_answer, candidate_answer)
 				if correct_answer == candidate_answer:
 					num_correct += 1
+				else:
+					print(num_total)
 				#k += 1
 				#if k >= 100:
 				#	break
