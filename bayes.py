@@ -82,6 +82,8 @@ class NB:
 				#print(correct_answer, candidate_answer)
 				if correct_answer == candidate_answer:
 					num_correct += 1
+				else:
+					print(num_total)
 				#k += 1
 				#if k >= 100:
 				#	break
@@ -127,4 +129,7 @@ model = NB(training_file='train_sanitized_nn.csv',test_file='test_sanitized_nn.c
 model.train()
 accuracy = model.test()
 print('model accuracy:', accuracy)
+<<<<<<< HEAD
 #model.save_trained_weights('NB_weights.json')
+=======
+>>>>>>> baf10b919a77cfe43b2a860f85074cf795c6ae7f
