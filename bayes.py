@@ -79,7 +79,7 @@ class NB:
 							s[class_id] += c.log_likelihoods[word]
 
 				candidate_answer = max(s.items(), key=(lambda x: x[1]))[0]
-				print(correct_answer, candidate_answer)
+				#print(correct_answer, candidate_answer)
 				if correct_answer == candidate_answer:
 					num_correct += 1
 				#k += 1
@@ -123,8 +123,8 @@ class ClassData:
 		return
 
 
-model = NB(training_file='train_sanitized.csv',test_file='test_sanitized.csv')
+model = NB(training_file='train_sanitized_nn.csv',test_file='test_sanitized_nn.csv')
 model.train()
 accuracy = model.test()
 print('model accuracy:', accuracy)
-model.save_trained_weights('NB_weights.json')
+#model.save_trained_weights('NB_weights.json')
