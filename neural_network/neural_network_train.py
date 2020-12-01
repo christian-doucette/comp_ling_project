@@ -98,7 +98,7 @@ for e in range(epochs):
         optimizer.step()
 
 
-
+torch.save(net, 'trained_network.pt')
 
 #=======================================#
 #             RNN Testing               #
@@ -146,8 +146,10 @@ for inputs, labels, indices in test_loader:
 misclassifications.sort()
 print(misclassifications)
 
-print("Test loss: {:.3f}".format(np.mean(test_losses)))
+num_data = len(test_loader.dataset)
+
+print(f"Test loss: {np.mean(test_losses)}")
 
 # accuracy over all test data
-test_acc = num_correct/len(test_loader.dataset)
-print("Test accuracy: {:.3f}".format(test_acc))
+test_acc = num_correct / num_data
+print(f"Test accuracy: {num_correct}/{num_data} = {test_acc}")
