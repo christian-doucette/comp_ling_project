@@ -125,11 +125,8 @@ class ClassData:
 		return
 
 
-model = NB(training_file='train_sanitized_nn.csv',test_file='test_sanitized_nn.csv')
+model = NB(training_file='train_sanitized_nn_full.csv',test_file='test_sanitized_nn_full.csv')
 model.train()
 accuracy = model.test()
-print('model accuracy:', accuracy)
-<<<<<<< HEAD
+#print('model accuracy:', accuracy)
 #model.save_trained_weights('NB_weights.json')
-=======
->>>>>>> baf10b919a77cfe43b2a860f85074cf795c6ae7f
