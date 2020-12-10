@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import torch
 import torch.nn as nn
@@ -25,6 +26,12 @@ min_occurences = 20     # min number of occurences a word needs to occur in the 
 #=======================================#
 
 word_to_id = get_vocab.vocab_indices('../train_sanitized_nn_full.csv', min_occurences)
+
+# Saves word_to_id as json for running the trained model
+with open('word_to_id.json', 'w') as fp:
+    json.dump(word_to_id, fp, indent=4)
+
+
 
 train_dataset = preprocess.preprocess_csv('../train_sanitized_nn_full.csv', reviews_len, word_to_id)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
